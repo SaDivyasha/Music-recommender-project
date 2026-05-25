@@ -1,20 +1,48 @@
-from flask import Flask
-from flask_cors import CORS
-from routes.recommend_routes import recommend_bp
+from flask import Flask, request, jsonify
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
 
 app = Flask(__name__)
 
-CORS(app)
+client_id = "YOUR_CLIENT_ID"
+client_secret = "YOUR_CLIENT_SECRET"
 
-app.register_blueprint(recommend_bp)
+auth_manager = SpotifyClientCredentials(
+    client_id=client_id,
+    client_secret=client_secret
+)
 
-@app.route('/')
-def home():
+sp = spotipy.Spotify(auth_manager=auth_manager)
 
-    return {
-        "message": "Backend Running Successfully"
-    }
 
-if __name__ == '__main__':
+@app.route("/recommend", methods=["POST"])
+def recommend():
+    data = request.get_json()
 
+    mood = data.get("mood", "")
+    language = data.get("language", "")
+    artist = data.get("artist", "")
+
+    # combine search
+    query = f"{mood} {language} {artist}"
+
+    results = sp.search(
+        q=query,
+        type="track",
+        limit=10
+    )
+
+    songs = []
+
+    for track in results["tracks"]["items"]:
+        songs.append({
+            "name": track["name"],
+            "artist": track["artists"][0]["name"],
+            "url": track["external_urls"]["spotify"]
+        })
+
+    return jsonify(songs)
+
+
+if __name__ == "__main__":
     app.run(debug=True)
